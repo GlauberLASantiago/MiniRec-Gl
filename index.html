@@ -1,0 +1,480 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniRec Gl</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.min.js"></script>
+    <style>
+        body { background-color: #1e293b; color: #fdfbff; }
+        .app-container { max-width: 380px; background-color: #ffffff; color: #1e293b; }
+        .accent-purple { background-color: #C490D1; color: white; }
+        .accent-purple:hover { background-color: #9b6bb5; }
+        .bg-beige { background-color: #F7F4E9; }
+        .bg-soft-lavender { background-color: #f1e6f7; }
+        .text-slate { color: #64748b; }
+        
+        /* VU Meter Vertical */
+        #vuContainer {
+            width: 14px;
+            height: 120px;
+            background: #1e293b;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #b0a0b8;
+        }
+        #vuFill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #E4BAD4, #C490D1, #f87171);
+            transition: height 0.05s ease;
+        }
+        #clipIndicator {
+            width: 14px;
+            height: 8px;
+            background: #1e293b;
+            border-radius: 2px;
+            margin-bottom: 4px;
+            border: 1px solid #b0a0b8;
+        }
+        #clipIndicator.clipping { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+
+        input[type=range] { accent-color: #a06db0; }
+
+        .record-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(196, 144, 209, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(196, 144, 209, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(196, 144, 209, 0); }
+        }
+        
+        .toggle-btn.active { background-color: #C490D1; color: white; }
+        .toggle-btn:not(.active) { background-color: #e5d4f0; color: #a06db0; }
+        
+        .option-card { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #a06db0; }
+
+        /* Estilização do seletor de velocidade */
+        .speed-select {
+            font-size: 8px;
+            background: #ffffff;
+            border: 1px solid #b0a0b8;
+            border-radius: 4px;
+            padding: 1px 2px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-2">
+
+    <div class="app-container w-full p-4 rounded-3xl shadow-2xl border border-[#b0a0b8]/30">
+        <!-- Cabeçalho -->
+        <header class="flex justify-between items-center mb-3">
+            <h1 class="text-sm font-black tracking-tighter uppercase text-[#9b6bb5]">MiniRec Gl</h1>
+            <div id="timer" class="text-xs font-mono bg-beige px-2 py-1 rounded-full text-slate border border-[#b0a0b8]/20">00:00:00</div>
+        </header>
+
+        <!-- Layout Principal com VU lateral -->
+        <div class="flex gap-4 mb-3">
+            <!-- Lado Esquerdo: Controles -->
+            <div class="flex-1 flex flex-col gap-2">
+                <!-- Seletor de Fonte -->
+                <div class="flex gap-1 p-1 bg-soft-lavender rounded-xl">
+                    <button id="sourceSystem" class="toggle-btn active flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all">Sistema</button>
+                    <button id="sourceMic" class="toggle-btn flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all">Microfone</button>
+                </div>
+
+                <!-- Ganho do Microfone (Visível apenas para Mic) -->
+                <div id="micGainContainer" class="hidden bg-beige p-2 rounded-xl border border-[#e5d4f0]">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[8px] font-bold uppercase text-slate">Ganho (Mic)</span>
+                        <span id="gainValueDisplay" class="text-[8px] font-bold text-[#9b6bb5]">100%</span>
+                    </div>
+                    <input type="range" id="micGain" min="0" max="2" step="0.1" value="1" class="w-full h-1 bg-white rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="grid grid-cols-1 gap-2">
+                    <button id="startBtn" class="accent-purple py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md">
+                        <div class="w-2 h-2 rounded-full bg-white"></div>
+                        GRAVAR
+                    </button>
+                    <button id="stopBtn" disabled class="bg-slate-200 text-slate-400 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-not-allowed">
+                        <div class="w-2 h-2 bg-slate-400"></div>
+                        PARAR
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lado Direito: VU Vertical -->
+            <div class="flex flex-col items-center justify-end">
+                <div id="clipIndicator"></div>
+                <div id="vuContainer">
+                    <div id="vuFill"></div>
+                </div>
+                <span class="text-[8px] font-black mt-1 text-[#9b6bb5]">VU</span>
+            </div>
+        </div>
+
+        <!-- Painel de Opções -->
+        <div class="grid grid-cols-2 gap-2 bg-soft-lavender p-3 rounded-2xl mb-3 border border-[#e5d4f0]">
+            <label class="flex items-center gap-2 cursor-pointer option-card">
+                <input type="checkbox" id="autoNormalize" checked class="w-3 h-3 rounded text-[#C490D1]">
+                Auto-Norm
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer option-card">
+                <input type="checkbox" id="autoRec" class="w-3 h-3 rounded text-[#C490D1]">
+                Auto-Rec
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer option-card" id="monitorLabel" style="display:none">
+                <input type="checkbox" id="monitorAudio" checked class="w-3 h-3 rounded text-[#C490D1]">
+                Monitor
+            </label>
+            <div class="flex items-center gap-2 option-card opacity-50">
+                <div class="w-2 h-2 bg-[#9b6bb5] rounded-full"></div>
+                -54dB Trim
+            </div>
+        </div>
+
+        <!-- Lista de Gravações -->
+        <div id="recordingsContainer" class="hidden border-t border-[#e5d4f0] pt-3">
+            <div id="recordingsList" class="max-h-[160px] overflow-y-auto space-y-2 pr-1"></div>
+        </div>
+
+        <!-- Loader -->
+        <div id="loader" class="fixed inset-0 bg-white/90 flex flex-col items-center justify-center z-50 hidden text-center p-4">
+            <div class="w-6 h-6 border-2 border-[#C490D1] border-t-transparent rounded-full animate-spin mb-2"></div>
+            <p id="loaderText" class="text-[9px] font-bold uppercase tracking-widest text-[#9b6bb5]">Processando...</p>
+        </div>
+    </div>
+
+    <!-- Modal de Erro -->
+    <div id="errorModal" class="fixed inset-0 bg-[#1e293b]/80 flex items-center justify-center z-[100] hidden p-4 text-center">
+        <div class="bg-white p-5 rounded-3xl max-w-[300px] w-full border border-red-200 shadow-2xl">
+            <h2 class="text-sm font-bold text-red-400 mb-2">Permissão Negada</h2>
+            <p class="text-slate text-[10px] mb-4">Captura de áudio do sistema não permitida no Canvas. Use Microfone ou execute localmente.</p>
+            <button onclick="switchSource('mic')" class="w-full accent-purple py-2 rounded-xl text-xs font-bold">Usar Microfone</button>
+        </div>
+    </div>
+
+    <script>
+        let mediaStream = null, mediaRecorder = null, audioChunks = [], audioContext = null;
+        let startTime = null, timerInterval = null, analyser = null, animationFrame = null;
+        let selectedSource = 'system', gainNode = null, monitorNode = null;
+        let isRecording = false, clipTimeout = null;
+
+        const startBtn = document.getElementById('startBtn'), stopBtn = document.getElementById('stopBtn');
+        const timerDisplay = document.getElementById('timer'), recordingsList = document.getElementById('recordingsList');
+        const recordingsContainer = document.getElementById('recordingsContainer');
+        const loader = document.getElementById('loader'), micGain = document.getElementById('micGain');
+        const micGainContainer = document.getElementById('micGainContainer');
+        const autoNormalizeCheckbox = document.getElementById('autoNormalize');
+        const autoRecCheckbox = document.getElementById('autoRec');
+        const monitorCheckbox = document.getElementById('monitorAudio');
+        const monitorLabel = document.getElementById('monitorLabel');
+        const vuFill = document.getElementById('vuFill'), clipIndicator = document.getElementById('clipIndicator');
+
+        const CONST_THRESHOLD = 0.002; // -54dB aproximado
+
+        // Novo formato: ano-mes-dia_hora-minuto-segundos
+        function getTimestampFilename() {
+            const now = new Date();
+            const pad = (n) => n.toString().padStart(2, '0');
+            const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+            const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+            return `${dateStr}_${timeStr}`;
+        }
+
+        function switchSource(source) {
+            selectedSource = source;
+            document.getElementById('sourceSystem').className = source === 'system' ? 'toggle-btn active flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all' : 'toggle-btn flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all';
+            document.getElementById('sourceMic').className = source === 'mic' ? 'toggle-btn active flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all' : 'toggle-btn flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all';
+            micGainContainer.style.display = source === 'mic' ? 'block' : 'none';
+            monitorLabel.style.display = source === 'mic' ? 'flex' : 'none';
+            document.getElementById('errorModal').classList.add('hidden');
+            
+            updateMonitoring();
+        }
+
+        function updateMonitoring() {
+            if (monitorNode && audioContext) {
+                if (selectedSource === 'mic' && monitorCheckbox.checked) {
+                    monitorNode.connect(audioContext.destination);
+                } else {
+                    try { monitorNode.disconnect(audioContext.destination); } catch(e) {}
+                }
+            }
+        }
+
+        monitorCheckbox.onchange = updateMonitoring;
+        document.getElementById('sourceSystem').onclick = () => switchSource('system');
+        document.getElementById('sourceMic').onclick = () => switchSource('mic');
+        
+        micGain.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('gainValueDisplay').textContent = Math.round(val * 100) + '%';
+            if (gainNode) gainNode.gain.setTargetAtTime(val, audioContext.currentTime, 0.01);
+        };
+
+        function drawVU() {
+            if (!analyser) return;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            const update = () => {
+                animationFrame = requestAnimationFrame(update);
+                analyser.getByteTimeDomainData(dataArray);
+                
+                let max = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    const val = Math.abs(dataArray[i] - 128) / 128;
+                    if (val > max) max = val;
+                }
+                
+                vuFill.style.height = (max * 100) + '%';
+                
+                if (max > 0.98) {
+                    clipIndicator.classList.add('clipping');
+                    clearTimeout(clipTimeout);
+                    clipTimeout = setTimeout(() => clipIndicator.classList.remove('clipping'), 500);
+                }
+
+                if (autoRecCheckbox.checked && !isRecording && max > CONST_THRESHOLD) {
+                    startRecording();
+                }
+            };
+            update();
+        }
+
+        async function startRecording() {
+            if (isRecording) return;
+            isRecording = true;
+            audioChunks = [];
+            mediaRecorder.start();
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const m = Math.floor((elapsed % 3600000) / 60000).toString().padStart(2, '0');
+                const s = Math.floor((elapsed % 60000) / 1000).toString().padStart(2, '0');
+                timerDisplay.textContent = `00:${m}:${s}`;
+            }, 1000);
+
+            startBtn.disabled = true; startBtn.className = "bg-slate-100 text-slate-300 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 cursor-not-allowed";
+            stopBtn.disabled = false; stopBtn.className = "bg-red-500 text-white py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md record-pulse";
+        }
+
+        async function processAndSave(blob) {
+            loader.classList.remove('hidden');
+            try {
+                const arrayBuffer = await blob.arrayBuffer();
+                const tempCtx = new AudioContext();
+                const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+                const { start, end } = detectSilence(audioBuffer, CONST_THRESHOLD);
+                if ((end - start) <= 0) throw new Error("Áudio sem sinal");
+
+                let processedBuffer = tempCtx.createBuffer(audioBuffer.numberOfChannels, end - start, audioBuffer.sampleRate);
+                for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+                    processedBuffer.copyToChannel(audioBuffer.getChannelData(i).subarray(start, end), i);
+                }
+
+                if (autoNormalizeCheckbox.checked) normalizeBuffer(processedBuffer);
+
+                const mp3Blob = await encodeToMp3(processedBuffer);
+                const fname = getTimestampFilename();
+                
+                const downloadUrl = URL.createObjectURL(mp3Blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `${fname}.mp3`;
+                link.click();
+
+                addRecordingToList(mp3Blob, fname, downloadUrl);
+            } catch (err) { alert(err.message); } finally { loader.classList.add('hidden'); }
+        }
+
+        function detectSilence(buffer, threshold) {
+            const data = buffer.getChannelData(0);
+            let s = 0, e = data.length;
+            for (let i = 0; i < data.length; i++) if (Math.abs(data[i]) > threshold) { s = i; break; }
+            for (let i = data.length - 1; i >= s; i--) if (Math.abs(data[i]) > threshold) { e = i; break; }
+            return { start: Math.max(0, s - 4410), end: Math.min(data.length, e + 4410) };
+        }
+
+        function normalizeBuffer(buffer) {
+            let maxPeak = 0;
+            for (let i = 0; i < buffer.numberOfChannels; i++) {
+                const data = buffer.getChannelData(i);
+                for (let j = 0; j < data.length; j++) {
+                    const absVal = Math.abs(data[j]);
+                    if (absVal > maxPeak) maxPeak = absVal;
+                }
+            }
+            if (maxPeak > 0) {
+                const gain = 0.98 / maxPeak;
+                for (let i = 0; i < buffer.numberOfChannels; i++) {
+                    const data = buffer.getChannelData(i);
+                    for (let j = 0; j < data.length; j++) data[j] *= gain;
+                }
+            }
+        }
+
+        async function encodeToMp3(audioBuffer) {
+            return new Promise((resolve) => {
+                const channels = audioBuffer.numberOfChannels, sampleRate = audioBuffer.sampleRate;
+                const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 256);
+                const mp3Data = [];
+                const left = audioBuffer.getChannelData(0), right = channels > 1 ? audioBuffer.getChannelData(1) : left;
+                const convert = (f) => { let s = Math.max(-1, Math.min(1, f)); return s < 0 ? s * 0x8000 : s * 0x7FFF; };
+
+                for (let i = 0; i < left.length; i += 1152) {
+                    const lChunk = new Int16Array(1152), rChunk = new Int16Array(1152);
+                    for (let j = 0; j < 1152 && (i + j) < left.length; j++) {
+                        lChunk[j] = convert(left[i + j]);
+                        rChunk[j] = convert(right[i + j]);
+                    }
+                    const mp3buf = mp3encoder.encodeBuffer(lChunk, rChunk);
+                    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                }
+                const end = mp3encoder.flush();
+                if (end.length > 0) mp3Data.push(end);
+                resolve(new Blob(mp3Data, { type: 'audio/mp3' }));
+            });
+        }
+
+        function addRecordingToList(blob, fname, url) {
+            recordingsContainer.classList.remove('hidden');
+            const div = document.createElement('div');
+            div.className = "bg-beige p-2 rounded-xl flex items-center justify-between border border-[#e5d4f0] gap-2";
+            
+            // Layout: [ Nome ] [ Velocidade ] [ Play ] [ Pasta ] [ Download ]
+            div.innerHTML = `
+                <div class="overflow-hidden flex-1">
+                    <p class="text-[8px] font-black text-[#9b6bb5] truncate uppercase">${fname}.mp3</p>
+                    <p class="text-[7px] text-slate-400 font-bold">${(blob.size/1024/1024).toFixed(2)}MB</p>
+                </div>
+                
+                <div class="flex items-center gap-1 shrink-0">
+                    <select class="speed-select" title="Velocidade">
+                        <option value="0.5">0.5x</option>
+                        <option value="1" selected>1.0x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2.0x</option>
+                    </select>
+
+                    <button class="play-btn accent-purple p-1.5 rounded-lg" title="Play/Pause">
+                        <svg class="w-3 h-3 fill-current" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.333-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                    </button>
+
+                    <button class="folder-btn bg-slate-200 text-slate-600 p-1.5 rounded-lg" title="Abrir Pasta Local">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                    </button>
+
+                    <a href="${url}" download="${fname}.mp3" class="bg-blue-400 text-white p-1.5 rounded-lg" title="Salvar Novamente">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    </a>
+                </div>
+                <audio class="hidden" src="${url}"></audio>
+            `;
+
+            const audio = div.querySelector('audio');
+            const playBtn = div.querySelector('.play-btn');
+            const folderBtn = div.querySelector('.folder-btn');
+            const speedSelect = div.querySelector('.speed-select');
+
+            playBtn.onclick = () => {
+                if (audio.paused) {
+                    audio.play();
+                    playBtn.innerHTML = `<svg class="w-3 h-3 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>`;
+                } else {
+                    audio.pause();
+                    playBtn.innerHTML = `<svg class="w-3 h-3 fill-current" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.333-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>`;
+                }
+            };
+
+            folderBtn.onclick = () => {
+                // Mensagem informativa, já que navegadores não permitem abrir pastas locais
+                const msg = document.createElement('div');
+                msg.className = "fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-3 py-1.5 rounded-full z-[200] animate-bounce shadow-lg";
+                msg.textContent = "O arquivo foi salvo na sua pasta de Downloads.";
+                document.body.appendChild(msg);
+                setTimeout(() => msg.remove(), 3000);
+            };
+
+            audio.onended = () => {
+                playBtn.innerHTML = `<svg class="w-3 h-3 fill-current" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.333-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>`;
+            };
+
+            speedSelect.onchange = (e) => {
+                audio.playbackRate = parseFloat(e.target.value);
+            };
+
+            recordingsList.prepend(div);
+        }
+
+        startBtn.onclick = async () => {
+            try {
+                if (selectedSource === 'system') {
+                    mediaStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { displaySurface: "browser" },
+                        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+                    });
+                } else {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                }
+
+                const tracks = mediaStream.getAudioTracks();
+                if (tracks.length === 0) throw new Error("Sem trilha de áudio");
+                if (selectedSource === 'system') mediaStream.getVideoTracks().forEach(t => t.stop());
+
+                audioContext = new AudioContext();
+                const source = audioContext.createMediaStreamSource(new MediaStream(tracks));
+                
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = selectedSource === 'mic' ? parseFloat(micGain.value) : 1;
+                
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                
+                source.connect(gainNode);
+                gainNode.connect(analyser);
+
+                monitorNode = gainNode;
+                updateMonitoring();
+
+                drawVU();
+
+                mediaRecorder = new MediaRecorder(new MediaStream(tracks));
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => processAndSave(new Blob(audioChunks));
+
+                if (!autoRecCheckbox.checked) {
+                    startRecording();
+                }
+
+                tracks[0].onended = () => stopBtn.click();
+            } catch (err) {
+                if (err.name === 'NotAllowedError') document.getElementById('errorModal').classList.remove('hidden');
+                else alert(err.message);
+            }
+        };
+
+        stopBtn.onclick = () => {
+            if (mediaRecorder?.state !== 'inactive') {
+                isRecording = false;
+                mediaRecorder.stop();
+                mediaStream.getTracks().forEach(track => track.stop());
+                clearInterval(timerInterval);
+                timerDisplay.textContent = "00:00:00";
+                cancelAnimationFrame(animationFrame);
+                startBtn.disabled = false; startBtn.className = "accent-purple py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md";
+                stopBtn.disabled = true; stopBtn.className = "bg-slate-200 text-slate-400 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-not-allowed";
+                vuFill.style.height = '0%';
+            }
+        };
+    </script>
+</body>
+</html>
