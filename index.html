@@ -4,10 +4,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#1e293b">
-    <meta name="description" content="Gravador de áudio no navegador com auto-atualização">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="minirec_icon_512.png">
     <title>MiniRec Gl</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.min.js"></script>
@@ -46,13 +42,14 @@
 
         /* VU Meter Vertical */
         #vuContainer {
-            width: 14px;
-            height: 120px;
+            width: 100%;
+            height: 100%;
             background: #1e293b;
-            border-radius: 4px;
+            border-radius: 12px;
             position: relative;
             overflow: hidden;
             border: 1px solid #b0a0b8;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
         }
 
         #vuFill {
@@ -65,11 +62,11 @@
         }
 
         #clipIndicator {
-            width: 14px;
+            width: 100%;
             height: 8px;
             background: #1e293b;
-            border-radius: 2px;
-            margin-bottom: 4px;
+            border-radius: 4px;
+            margin-bottom: 6px;
             border: 1px solid #b0a0b8;
         }
 
@@ -80,6 +77,8 @@
 
         input[type=range] {
             accent-color: #a06db0;
+            background: linear-gradient(90deg, #ffffff 0%, #ffffff 49%, #b0a0b8 49%, #b0a0b8 51%, #ffffff 51%, #ffffff 100%);
+            border-radius: 4px;
         }
 
         .record-pulse {
@@ -145,11 +144,11 @@
             <!-- Lado Esquerdo: Controles -->
             <div class="flex-1 flex flex-col gap-2">
                 <!-- Seletor de Fonte -->
-                <div class="flex gap-1 p-1 bg-soft-lavender rounded-xl">
+                <div class="flex gap-2 p-1.5 bg-soft-lavender rounded-2xl">
                     <button id="sourceSystem"
-                        class="toggle-btn active flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all">Sistema</button>
+                        class="toggle-btn active flex-1 py-2 rounded-xl text-[10px] tracking-wide font-black uppercase transition-all shadow-sm">Sistema</button>
                     <button id="sourceMic"
-                        class="toggle-btn flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all">Microfone</button>
+                        class="toggle-btn flex-1 py-2 rounded-xl text-[10px] tracking-wide font-black uppercase transition-all">Microfone</button>
                 </div>
 
                 <!-- Ganho do Microfone (Visível apenas para Mic) -->
@@ -163,27 +162,27 @@
                 </div>
 
                 <!-- Botões de Ação -->
-                <div class="grid grid-cols-1 gap-2">
+                <div class="grid grid-cols-1 gap-3">
                     <button id="startBtn"
-                        class="accent-purple py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md">
-                        <div class="w-2 h-2 rounded-full bg-white"></div>
+                        class="accent-purple py-4 rounded-2xl font-black text-sm tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg">
+                        <div class="w-3 h-3 rounded-full bg-white shadow-sm"></div>
                         GRAVAR
                     </button>
                     <button id="stopBtn" disabled
-                        class="bg-slate-200 text-slate-400 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-not-allowed">
-                        <div class="w-2 h-2 bg-slate-400"></div>
+                        class="bg-slate-200 text-slate-400 py-4 rounded-2xl font-black text-sm tracking-wider flex items-center justify-center gap-2 transition-all cursor-not-allowed">
+                        <div class="w-3 h-3 bg-slate-400 rounded-sm"></div>
                         PARAR
                     </button>
                 </div>
             </div>
 
             <!-- Lado Direito: VU Vertical -->
-            <div class="flex flex-col items-center justify-end">
+            <div class="flex-1 flex flex-col items-center justify-end h-auto">
                 <div id="clipIndicator"></div>
-                <div id="vuContainer">
+                <div id="vuContainer" class="flex-1">
                     <div id="vuFill"></div>
                 </div>
-                <span class="text-[8px] font-black mt-1 text-[#9b6bb5]">VU</span>
+                <span class="text-[10px] uppercase font-black tracking-widest mt-2 text-[#9b6bb5]">VU</span>
             </div>
         </div>
 
@@ -201,10 +200,7 @@
                 <input type="checkbox" id="monitorAudio" checked class="w-3 h-3 rounded text-[#C490D1]">
                 Monitor
             </label>
-            <div class="flex items-center gap-2 option-card opacity-50">
-                <div class="w-2 h-2 bg-[#9b6bb5] rounded-full"></div>
-                -54dB Trim
-            </div>
+
         </div>
 
         <!-- Lista de Gravações -->
@@ -261,9 +257,14 @@
         }
 
         function switchSource(source) {
+            if (selectedSource === source) return;
             selectedSource = source;
-            document.getElementById('sourceSystem').className = source === 'system' ? 'toggle-btn active flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all' : 'toggle-btn flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all';
-            document.getElementById('sourceMic').className = source === 'mic' ? 'toggle-btn active flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all' : 'toggle-btn flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all';
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(t => t.stop());
+                mediaStream = null;
+            }
+            document.getElementById('sourceSystem').className = source === 'system' ? 'toggle-btn active flex-1 py-2 rounded-xl text-[10px] tracking-wide font-black uppercase transition-all shadow-sm' : 'toggle-btn flex-1 py-2 rounded-xl text-[10px] tracking-wide font-black uppercase transition-all';
+            document.getElementById('sourceMic').className = source === 'mic' ? 'toggle-btn active flex-1 py-2 rounded-xl text-[10px] tracking-wide font-black uppercase transition-all shadow-sm' : 'toggle-btn flex-1 py-2 rounded-xl text-[10px] tracking-wide font-black uppercase transition-all';
             micGainContainer.style.display = source === 'mic' ? 'block' : 'none';
             monitorLabel.style.display = source === 'mic' ? 'flex' : 'none';
             document.getElementById('errorModal').classList.add('hidden');
@@ -334,15 +335,16 @@
                 timerDisplay.textContent = `00:${m}:${s}`;
             }, 1000);
 
-            startBtn.disabled = true; startBtn.className = "bg-slate-100 text-slate-300 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 cursor-not-allowed";
-            stopBtn.disabled = false; stopBtn.className = "bg-red-500 text-white py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md record-pulse";
+            startBtn.disabled = true; startBtn.className = "bg-slate-100 text-slate-300 py-4 rounded-2xl font-black text-sm tracking-wider flex items-center justify-center gap-2 cursor-not-allowed";
+            stopBtn.disabled = false; stopBtn.className = "bg-red-500 text-white py-4 rounded-2xl font-black text-sm tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg record-pulse";
         }
 
         async function processAndSave(blob) {
             loader.classList.remove('hidden');
+            let tempCtx = null;
             try {
                 const arrayBuffer = await blob.arrayBuffer();
-                const tempCtx = new AudioContext();
+                tempCtx = new AudioContext();
                 const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
                 const { start, end } = detectSilence(audioBuffer, CONST_THRESHOLD);
                 if ((end - start) <= 0) throw new Error("Áudio sem sinal");
@@ -364,15 +366,49 @@
                 link.click();
 
                 addRecordingToList(mp3Blob, fname, downloadUrl);
-            } catch (err) { alert(err.message); } finally { loader.classList.add('hidden'); }
+            } catch (err) { alert(err.message); } finally { 
+                if (tempCtx && tempCtx.state !== 'closed') tempCtx.close();
+                loader.classList.add('hidden'); 
+            }
         }
 
         function detectSilence(buffer, threshold) {
             const data = buffer.getChannelData(0);
-            let s = 0, e = data.length;
-            for (let i = 0; i < data.length; i++) if (Math.abs(data[i]) > threshold) { s = i; break; }
-            for (let i = data.length - 1; i >= s; i--) if (Math.abs(data[i]) > threshold) { e = i; break; }
-            return { start: Math.max(0, s - 4410), end: Math.min(data.length, e + 4410) };
+            const sampleRate = buffer.sampleRate;
+            // Exige "minSilenceDuration" de silêncio absoluto para considerar como borda
+            const minSilenceSamples = sampleRate * 0.1; // 100ms
+            
+            let s = 0;
+            let soundSamplesCount = 0;
+            for (let i = 0; i < data.length; i++) {
+                if (Math.abs(data[i]) > threshold) {
+                    soundSamplesCount++;
+                    if (soundSamplesCount > minSilenceSamples) {
+                        s = Math.max(0, i - soundSamplesCount);
+                        break;
+                    }
+                } else {
+                    soundSamplesCount = 0;
+                }
+            }
+
+            let e = data.length;
+            soundSamplesCount = 0;
+            for (let i = data.length - 1; i >= s; i--) {
+                if (Math.abs(data[i]) > threshold) {
+                    soundSamplesCount++;
+                    if (soundSamplesCount > minSilenceSamples) {
+                        e = Math.min(data.length, i + soundSamplesCount);
+                        break;
+                    }
+                } else {
+                    soundSamplesCount = 0;
+                }
+            }
+            
+            // Adiciona um padding (fade in/out natural de 100ms) ao redor
+            const padding = Math.floor(sampleRate * 0.1);
+            return { start: Math.max(0, s - padding), end: Math.min(data.length, e + padding) };
         }
 
         function normalizeBuffer(buffer) {
@@ -395,19 +431,33 @@
 
         async function encodeToMp3(audioBuffer) {
             return new Promise((resolve) => {
-                const channels = audioBuffer.numberOfChannels, sampleRate = audioBuffer.sampleRate;
-                const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 256);
+                // Forçar canais como 1 se for microfone, ou os originais se for sistema
+                const outputChannels = selectedSource === 'mic' ? 1 : audioBuffer.numberOfChannels;
+                const sampleRate = audioBuffer.sampleRate;
+                const mp3encoder = new lamejs.Mp3Encoder(outputChannels, sampleRate, 256);
                 const mp3Data = [];
-                const left = audioBuffer.getChannelData(0), right = channels > 1 ? audioBuffer.getChannelData(1) : left;
+                
+                const left = audioBuffer.getChannelData(0);
+                // Se o encoder for configurado para multicanal original, puxar a direita também
+                const right = (outputChannels > 1 && audioBuffer.numberOfChannels > 1) ? audioBuffer.getChannelData(1) : left;
+                
                 const convert = (f) => { let s = Math.max(-1, Math.min(1, f)); return s < 0 ? s * 0x8000 : s * 0x7FFF; };
 
                 for (let i = 0; i < left.length; i += 1152) {
-                    const lChunk = new Int16Array(1152), rChunk = new Int16Array(1152);
+                    const lChunk = new Int16Array(1152);
+                    const rChunk = new Int16Array(1152);
                     for (let j = 0; j < 1152 && (i + j) < left.length; j++) {
                         lChunk[j] = convert(left[i + j]);
-                        rChunk[j] = convert(right[i + j]);
+                        if (outputChannels > 1) rChunk[j] = convert(right[i + j]);
                     }
-                    const mp3buf = mp3encoder.encodeBuffer(lChunk, rChunk);
+                    
+                    let mp3buf;
+                    if (outputChannels === 1) {
+                        mp3buf = mp3encoder.encodeBuffer(lChunk);
+                    } else {
+                        mp3buf = mp3encoder.encodeBuffer(lChunk, rChunk);
+                    }
+                    
                     if (mp3buf.length > 0) mp3Data.push(mp3buf);
                 }
                 const end = mp3encoder.flush();
@@ -423,9 +473,9 @@
 
             // Layout: [ Nome ] [ Velocidade ] [ Play ] [ Pasta ] [ Download ]
             div.innerHTML = `
-                <div class="overflow-hidden flex-1">
-                    <p class="text-[8px] font-black text-[#9b6bb5] truncate uppercase">${fname}.mp3</p>
-                    <p class="text-[7px] text-slate-400 font-bold">${(blob.size / 1024 / 1024).toFixed(2)}MB</p>
+                <div class="overflow-hidden flex-1 group">
+                    <input type="text" class="filename-input text-[8px] font-black text-[#9b6bb5] bg-transparent border-b border-transparent hover:border-[#C490D1] focus:border-[#C490D1] focus:outline-none w-full truncate uppercase cursor-text transition-colors" value="${fname}" />
+                    <p class="text-[7px] text-slate-400 font-bold mt-[1px]">${(blob.size / 1024 / 1024).toFixed(2)}MB</p>
                 </div>
                 
                 <div class="flex items-center gap-1 shrink-0">
@@ -444,7 +494,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
                     </button>
 
-                    <a href="${url}" download="${fname}.mp3" class="bg-blue-400 text-white p-1.5 rounded-lg" title="Salvar Novamente">
+                    <a href="${url}" download="${fname}.mp3" class="download-link bg-blue-400 text-white p-1.5 rounded-lg" title="Salvar Novamente">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     </a>
                 </div>
@@ -455,6 +505,14 @@
             const playBtn = div.querySelector('.play-btn');
             const folderBtn = div.querySelector('.folder-btn');
             const speedSelect = div.querySelector('.speed-select');
+            const nameInput = div.querySelector('.filename-input');
+            const downloadLink = div.querySelector('.download-link');
+
+            nameInput.addEventListener('input', (e) => {
+                let newName = e.target.value.trim();
+                if(!newName) newName = "audio";
+                downloadLink.download = `${newName}.mp3`;
+            });
 
             playBtn.onclick = () => {
                 if (audio.paused) {
@@ -475,6 +533,7 @@
                 setTimeout(() => msg.remove(), 3000);
             };
 
+
             audio.onended = () => {
                 playBtn.innerHTML = `<svg class="w-3 h-3 fill-current" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.333-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>`;
             };
@@ -488,19 +547,27 @@
 
         startBtn.onclick = async () => {
             try {
-                if (selectedSource === 'system') {
-                    mediaStream = await navigator.mediaDevices.getDisplayMedia({
-                        video: { displaySurface: "browser" },
-                        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-                    });
-                } else {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                if (!mediaStream || mediaStream.getAudioTracks().length === 0 || mediaStream.getAudioTracks().every(t => t.readyState === 'ended')) {
+                    if (selectedSource === 'system') {
+                        mediaStream = await navigator.mediaDevices.getDisplayMedia({
+                            video: { displaySurface: "browser" },
+                            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+                            systemAudio: "include"
+                        });
+                    } else {
+                        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } 
+                        });
+                    }
                 }
 
                 const tracks = mediaStream.getAudioTracks();
                 if (tracks.length === 0) throw new Error("Sem trilha de áudio");
                 if (selectedSource === 'system') mediaStream.getVideoTracks().forEach(t => t.stop());
 
+                if (audioContext && audioContext.state !== 'closed') {
+                    await audioContext.close();
+                }
                 audioContext = new AudioContext();
                 const source = audioContext.createMediaStreamSource(new MediaStream(tracks));
 
@@ -537,45 +604,15 @@
             if (mediaRecorder?.state !== 'inactive') {
                 isRecording = false;
                 mediaRecorder.stop();
-                mediaStream.getTracks().forEach(track => track.stop());
+                // A stream (mediaStream) não deve ter seus tracks parados para evitar novos prompts de permissão na mesma sessão.
                 clearInterval(timerInterval);
                 timerDisplay.textContent = "00:00:00";
                 cancelAnimationFrame(animationFrame);
-                startBtn.disabled = false; startBtn.className = "accent-purple py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md";
-                stopBtn.disabled = true; stopBtn.className = "bg-slate-200 text-slate-400 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-not-allowed";
+                startBtn.disabled = false; startBtn.className = "accent-purple py-4 rounded-2xl font-black text-sm tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg";
+                stopBtn.disabled = true; stopBtn.className = "bg-slate-200 text-slate-400 py-4 rounded-2xl font-black text-sm tracking-wider flex items-center justify-center gap-2 transition-all cursor-not-allowed";
                 vuFill.style.height = '0%';
             }
         };
-
-        // Service Worker / PWA Auto-Update Logic
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(reg => {
-                    console.log('[Service Worker] Registrado com sucesso:', reg.scope);
-
-                    reg.addEventListener('updatefound', () => {
-                        const newWorker = reg.installing;
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('[Service Worker] Nova versão disponível. Atualizando...');
-                                // O novo SW já chamou skipWaiting(), a página será recarregada no controllerchange.
-                            }
-                        });
-                    });
-                }).catch(err => {
-                    console.error('[Service Worker] Erro no registro:', err);
-                });
-            });
-
-            // Tratamento caso o service worker tome controle (ex: skipWaiting foi chamado)
-            let refreshing = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing) {
-                    refreshing = true;
-                    window.location.reload();
-                }
-            });
-        }
     </script>
 </body>
 
