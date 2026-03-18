@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MiniRec Gl</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e293b">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.min.js"></script>
     <style>
@@ -49,7 +51,7 @@
             position: relative;
             overflow: hidden;
             border: 1px solid #b0a0b8;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         #vuFill {
@@ -366,9 +368,9 @@
                 link.click();
 
                 addRecordingToList(mp3Blob, fname, downloadUrl);
-            } catch (err) { alert(err.message); } finally { 
+            } catch (err) { alert(err.message); } finally {
                 if (tempCtx && tempCtx.state !== 'closed') tempCtx.close();
-                loader.classList.add('hidden'); 
+                loader.classList.add('hidden');
             }
         }
 
@@ -377,7 +379,7 @@
             const sampleRate = buffer.sampleRate;
             // Exige "minSilenceDuration" de silêncio absoluto para considerar como borda
             const minSilenceSamples = sampleRate * 0.1; // 100ms
-            
+
             let s = 0;
             let soundSamplesCount = 0;
             for (let i = 0; i < data.length; i++) {
@@ -405,7 +407,7 @@
                     soundSamplesCount = 0;
                 }
             }
-            
+
             // Adiciona um padding (fade in/out natural de 100ms) ao redor
             const padding = Math.floor(sampleRate * 0.1);
             return { start: Math.max(0, s - padding), end: Math.min(data.length, e + padding) };
@@ -436,11 +438,11 @@
                 const sampleRate = audioBuffer.sampleRate;
                 const mp3encoder = new lamejs.Mp3Encoder(outputChannels, sampleRate, 256);
                 const mp3Data = [];
-                
+
                 const left = audioBuffer.getChannelData(0);
                 // Se o encoder for configurado para multicanal original, puxar a direita também
                 const right = (outputChannels > 1 && audioBuffer.numberOfChannels > 1) ? audioBuffer.getChannelData(1) : left;
-                
+
                 const convert = (f) => { let s = Math.max(-1, Math.min(1, f)); return s < 0 ? s * 0x8000 : s * 0x7FFF; };
 
                 for (let i = 0; i < left.length; i += 1152) {
@@ -450,14 +452,14 @@
                         lChunk[j] = convert(left[i + j]);
                         if (outputChannels > 1) rChunk[j] = convert(right[i + j]);
                     }
-                    
+
                     let mp3buf;
                     if (outputChannels === 1) {
                         mp3buf = mp3encoder.encodeBuffer(lChunk);
                     } else {
                         mp3buf = mp3encoder.encodeBuffer(lChunk, rChunk);
                     }
-                    
+
                     if (mp3buf.length > 0) mp3Data.push(mp3buf);
                 }
                 const end = mp3encoder.flush();
@@ -510,7 +512,7 @@
 
             nameInput.addEventListener('input', (e) => {
                 let newName = e.target.value.trim();
-                if(!newName) newName = "audio";
+                if (!newName) newName = "audio";
                 downloadLink.download = `${newName}.mp3`;
             });
 
@@ -555,8 +557,8 @@
                             systemAudio: "include"
                         });
                     } else {
-                        mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } 
+                        mediaStream = await navigator.mediaDevices.getUserMedia({
+                            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
                         });
                     }
                 }
@@ -613,6 +615,25 @@
                 vuFill.style.height = '0%';
             }
         };
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js').then(reg => {
+                    console.log('ServiceWorker registrado com sucesso:', reg.scope);
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                if (confirm('Nova versão do app disponível! Deseja atualizar agora?')) {
+                                    window.location.reload();
+                                }
+                            }
+                        };
+                    };
+                }).catch(err => console.log('Falha ao registrar ServiceWorker:', err));
+            });
+        }
     </script>
 </body>
 
