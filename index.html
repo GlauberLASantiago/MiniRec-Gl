@@ -1,21 +1,49 @@
-
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1e293b">
+    <meta name="description" content="Gravador de áudio no navegador com auto-atualização">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="minirec_icon_512.png">
     <title>MiniRec Gl</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.min.js"></script>
     <style>
-        body { background-color: #1e293b; color: #fdfbff; }
-        .app-container { max-width: 380px; background-color: #ffffff; color: #1e293b; }
-        .accent-purple { background-color: #C490D1; color: white; }
-        .accent-purple:hover { background-color: #9b6bb5; }
-        .bg-beige { background-color: #F7F4E9; }
-        .bg-soft-lavender { background-color: #f1e6f7; }
-        .text-slate { color: #64748b; }
-        
+        body {
+            background-color: #1e293b;
+            color: #fdfbff;
+        }
+
+        .app-container {
+            max-width: 380px;
+            background-color: #ffffff;
+            color: #1e293b;
+        }
+
+        .accent-purple {
+            background-color: #C490D1;
+            color: white;
+        }
+
+        .accent-purple:hover {
+            background-color: #9b6bb5;
+        }
+
+        .bg-beige {
+            background-color: #F7F4E9;
+        }
+
+        .bg-soft-lavender {
+            background-color: #f1e6f7;
+        }
+
+        .text-slate {
+            color: #64748b;
+        }
+
         /* VU Meter Vertical */
         #vuContainer {
             width: 14px;
@@ -26,6 +54,7 @@
             overflow: hidden;
             border: 1px solid #b0a0b8;
         }
+
         #vuFill {
             position: absolute;
             bottom: 0;
@@ -34,6 +63,7 @@
             background: linear-gradient(to top, #E4BAD4, #C490D1, #f87171);
             transition: height 0.05s ease;
         }
+
         #clipIndicator {
             width: 14px;
             height: 8px;
@@ -42,21 +72,50 @@
             margin-bottom: 4px;
             border: 1px solid #b0a0b8;
         }
-        #clipIndicator.clipping { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
 
-        input[type=range] { accent-color: #a06db0; }
-
-        .record-pulse { animation: pulse 1.5s infinite; }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(196, 144, 209, 0.7); }
-            70% { box-shadow: 0 0 0 8px rgba(196, 144, 209, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(196, 144, 209, 0); }
+        #clipIndicator.clipping {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
         }
-        
-        .toggle-btn.active { background-color: #C490D1; color: white; }
-        .toggle-btn:not(.active) { background-color: #e5d4f0; color: #a06db0; }
-        
-        .option-card { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #a06db0; }
+
+        input[type=range] {
+            accent-color: #a06db0;
+        }
+
+        .record-pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(196, 144, 209, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 8px rgba(196, 144, 209, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(196, 144, 209, 0);
+            }
+        }
+
+        .toggle-btn.active {
+            background-color: #C490D1;
+            color: white;
+        }
+
+        .toggle-btn:not(.active) {
+            background-color: #e5d4f0;
+            color: #a06db0;
+        }
+
+        .option-card {
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #a06db0;
+        }
 
         /* Estilização do seletor de velocidade */
         .speed-select {
@@ -69,13 +128,16 @@
         }
     </style>
 </head>
+
 <body class="min-h-screen flex items-center justify-center p-2">
 
     <div class="app-container w-full p-4 rounded-3xl shadow-2xl border border-[#b0a0b8]/30">
         <!-- Cabeçalho -->
         <header class="flex justify-between items-center mb-3">
             <h1 class="text-sm font-black tracking-tighter uppercase text-[#9b6bb5]">MiniRec Gl</h1>
-            <div id="timer" class="text-xs font-mono bg-beige px-2 py-1 rounded-full text-slate border border-[#b0a0b8]/20">00:00:00</div>
+            <div id="timer"
+                class="text-xs font-mono bg-beige px-2 py-1 rounded-full text-slate border border-[#b0a0b8]/20">00:00:00
+            </div>
         </header>
 
         <!-- Layout Principal com VU lateral -->
@@ -84,8 +146,10 @@
             <div class="flex-1 flex flex-col gap-2">
                 <!-- Seletor de Fonte -->
                 <div class="flex gap-1 p-1 bg-soft-lavender rounded-xl">
-                    <button id="sourceSystem" class="toggle-btn active flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all">Sistema</button>
-                    <button id="sourceMic" class="toggle-btn flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all">Microfone</button>
+                    <button id="sourceSystem"
+                        class="toggle-btn active flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all">Sistema</button>
+                    <button id="sourceMic"
+                        class="toggle-btn flex-1 py-1 rounded-lg text-[9px] font-bold uppercase transition-all">Microfone</button>
                 </div>
 
                 <!-- Ganho do Microfone (Visível apenas para Mic) -->
@@ -94,16 +158,19 @@
                         <span class="text-[8px] font-bold uppercase text-slate">Ganho (Mic)</span>
                         <span id="gainValueDisplay" class="text-[8px] font-bold text-[#9b6bb5]">100%</span>
                     </div>
-                    <input type="range" id="micGain" min="0" max="2" step="0.1" value="1" class="w-full h-1 bg-white rounded-lg appearance-none cursor-pointer">
+                    <input type="range" id="micGain" min="0" max="2" step="0.1" value="1"
+                        class="w-full h-1 bg-white rounded-lg appearance-none cursor-pointer">
                 </div>
 
                 <!-- Botões de Ação -->
                 <div class="grid grid-cols-1 gap-2">
-                    <button id="startBtn" class="accent-purple py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md">
+                    <button id="startBtn"
+                        class="accent-purple py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md">
                         <div class="w-2 h-2 rounded-full bg-white"></div>
                         GRAVAR
                     </button>
-                    <button id="stopBtn" disabled class="bg-slate-200 text-slate-400 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-not-allowed">
+                    <button id="stopBtn" disabled
+                        class="bg-slate-200 text-slate-400 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-not-allowed">
                         <div class="w-2 h-2 bg-slate-400"></div>
                         PARAR
                     </button>
@@ -146,18 +213,22 @@
         </div>
 
         <!-- Loader -->
-        <div id="loader" class="fixed inset-0 bg-white/90 flex flex-col items-center justify-center z-50 hidden text-center p-4">
+        <div id="loader"
+            class="fixed inset-0 bg-white/90 flex flex-col items-center justify-center z-50 hidden text-center p-4">
             <div class="w-6 h-6 border-2 border-[#C490D1] border-t-transparent rounded-full animate-spin mb-2"></div>
             <p id="loaderText" class="text-[9px] font-bold uppercase tracking-widest text-[#9b6bb5]">Processando...</p>
         </div>
     </div>
 
     <!-- Modal de Erro -->
-    <div id="errorModal" class="fixed inset-0 bg-[#1e293b]/80 flex items-center justify-center z-[100] hidden p-4 text-center">
+    <div id="errorModal"
+        class="fixed inset-0 bg-[#1e293b]/80 flex items-center justify-center z-[100] hidden p-4 text-center">
         <div class="bg-white p-5 rounded-3xl max-w-[300px] w-full border border-red-200 shadow-2xl">
             <h2 class="text-sm font-bold text-red-400 mb-2">Permissão Negada</h2>
-            <p class="text-slate text-[10px] mb-4">Captura de áudio do sistema não permitida no Canvas. Use Microfone ou execute localmente.</p>
-            <button onclick="switchSource('mic')" class="w-full accent-purple py-2 rounded-xl text-xs font-bold">Usar Microfone</button>
+            <p class="text-slate text-[10px] mb-4">Captura de áudio do sistema não permitida no Canvas. Use Microfone ou
+                execute localmente.</p>
+            <button onclick="switchSource('mic')" class="w-full accent-purple py-2 rounded-xl text-xs font-bold">Usar
+                Microfone</button>
         </div>
     </div>
 
@@ -184,7 +255,7 @@
         function getTimestampFilename() {
             const now = new Date();
             const pad = (n) => n.toString().padStart(2, '0');
-            const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+            const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
             const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
             return `${dateStr}_${timeStr}`;
         }
@@ -196,7 +267,7 @@
             micGainContainer.style.display = source === 'mic' ? 'block' : 'none';
             monitorLabel.style.display = source === 'mic' ? 'flex' : 'none';
             document.getElementById('errorModal').classList.add('hidden');
-            
+
             updateMonitoring();
         }
 
@@ -205,7 +276,7 @@
                 if (selectedSource === 'mic' && monitorCheckbox.checked) {
                     monitorNode.connect(audioContext.destination);
                 } else {
-                    try { monitorNode.disconnect(audioContext.destination); } catch(e) {}
+                    try { monitorNode.disconnect(audioContext.destination); } catch (e) { }
                 }
             }
         }
@@ -213,7 +284,7 @@
         monitorCheckbox.onchange = updateMonitoring;
         document.getElementById('sourceSystem').onclick = () => switchSource('system');
         document.getElementById('sourceMic').onclick = () => switchSource('mic');
-        
+
         micGain.oninput = (e) => {
             const val = parseFloat(e.target.value);
             document.getElementById('gainValueDisplay').textContent = Math.round(val * 100) + '%';
@@ -224,19 +295,19 @@
             if (!analyser) return;
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
-            
+
             const update = () => {
                 animationFrame = requestAnimationFrame(update);
                 analyser.getByteTimeDomainData(dataArray);
-                
+
                 let max = 0;
                 for (let i = 0; i < bufferLength; i++) {
                     const val = Math.abs(dataArray[i] - 128) / 128;
                     if (val > max) max = val;
                 }
-                
+
                 vuFill.style.height = (max * 100) + '%';
-                
+
                 if (max > 0.98) {
                     clipIndicator.classList.add('clipping');
                     clearTimeout(clipTimeout);
@@ -285,7 +356,7 @@
 
                 const mp3Blob = await encodeToMp3(processedBuffer);
                 const fname = getTimestampFilename();
-                
+
                 const downloadUrl = URL.createObjectURL(mp3Blob);
                 const link = document.createElement('a');
                 link.href = downloadUrl;
@@ -349,12 +420,12 @@
             recordingsContainer.classList.remove('hidden');
             const div = document.createElement('div');
             div.className = "bg-beige p-2 rounded-xl flex items-center justify-between border border-[#e5d4f0] gap-2";
-            
+
             // Layout: [ Nome ] [ Velocidade ] [ Play ] [ Pasta ] [ Download ]
             div.innerHTML = `
                 <div class="overflow-hidden flex-1">
                     <p class="text-[8px] font-black text-[#9b6bb5] truncate uppercase">${fname}.mp3</p>
-                    <p class="text-[7px] text-slate-400 font-bold">${(blob.size/1024/1024).toFixed(2)}MB</p>
+                    <p class="text-[7px] text-slate-400 font-bold">${(blob.size / 1024 / 1024).toFixed(2)}MB</p>
                 </div>
                 
                 <div class="flex items-center gap-1 shrink-0">
@@ -432,13 +503,13 @@
 
                 audioContext = new AudioContext();
                 const source = audioContext.createMediaStreamSource(new MediaStream(tracks));
-                
+
                 gainNode = audioContext.createGain();
                 gainNode.gain.value = selectedSource === 'mic' ? parseFloat(micGain.value) : 1;
-                
+
                 analyser = audioContext.createAnalyser();
                 analyser.fftSize = 256;
-                
+
                 source.connect(gainNode);
                 gainNode.connect(analyser);
 
@@ -475,6 +546,37 @@
                 vuFill.style.height = '0%';
             }
         };
+
+        // Service Worker / PWA Auto-Update Logic
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    console.log('[Service Worker] Registrado com sucesso:', reg.scope);
+
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('[Service Worker] Nova versão disponível. Atualizando...');
+                                // O novo SW já chamou skipWaiting(), a página será recarregada no controllerchange.
+                            }
+                        });
+                    });
+                }).catch(err => {
+                    console.error('[Service Worker] Erro no registro:', err);
+                });
+            });
+
+            // Tratamento caso o service worker tome controle (ex: skipWaiting foi chamado)
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
+        }
     </script>
 </body>
+
 </html>
